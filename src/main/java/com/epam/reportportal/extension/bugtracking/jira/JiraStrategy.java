@@ -67,6 +67,11 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+// download from
+// https://github.com/jenkinsci/jira-plugin/blob/master/src/main/java/hudson/plugins/jira/auth/BearerHttpAuthenticationHandler.java
+import hudson.plugins.jira.auth.BearerHttpAuthenticationHandler;
+import com.atlassian.jira.rest.client.api.AuthenticationHandler;
+
 import static com.epam.ta.reportportal.commons.Predicates.*;
 import static com.epam.ta.reportportal.commons.validation.BusinessRule.expect;
 import static com.epam.ta.reportportal.commons.validation.Suppliers.formattedSupplier;
@@ -469,9 +474,17 @@ public class JiraStrategy implements ReportPortalExtensionPoint, BtsExtension {
 
 	}
 
+	private AuthenticationHandler getAuthenticationHandler(String username, String password) {
+            if ("token".equalsIgnoreCase(username)) {
+                return new BearerHttpAuthenticationHandler(password);
+            } else {
+                return new BasicHttpAuthenticationHandler(username, password);
+            }
+        }
+
 	public JiraRestClient getClient(String uri, String providedUsername, String providePassword) {
 		return new AsynchronousJiraRestClientFactory().create(URI.create(uri),
-				new BasicHttpAuthenticationHandler(providedUsername, providePassword)
+				getAuthenticationHandler(providedUsername, providePassword)
 		);
 	}
 
@@ -483,7 +496,7 @@ public class JiraStrategy implements ReportPortalExtensionPoint, BtsExtension {
 		String password = JiraProps.PASSWORD.getParam(params)
 				.orElseThrow(() -> new ReportPortalException(ErrorType.UNABLE_INTERACT_WITH_INTEGRATION, "Password is not specified."));
 
-		DisposableHttpClient httpClient = (new AsynchronousHttpClientFactory()).createClient(URI.create(url), new BasicHttpAuthenticationHandler(username, simpleEncryptor.decrypt(password))
+		DisposableHttpClient httpClient = (new AsynchronousHttpClientFactory()).createClient(URI.create(url), getAuthenticationHandler(username, simpleEncryptor.decrypt(password))
 		);
 		return new AsynchronousJiraRestClientExtended(URI.create(url), httpClient);
 	}
@@ -498,7 +511,7 @@ public class JiraStrategy implements ReportPortalExtensionPoint, BtsExtension {
 				"Password is not specified."
 		));
 
-		DisposableHttpClient httpClient = (new AsynchronousHttpClientFactory()).createClient(URI.create(url), new BasicHttpAuthenticationHandler(username, password)
+		DisposableHttpClient httpClient = (new AsynchronousHttpClientFactory()).createClient(URI.create(url), getAuthenticationHandler(username, password)
 		);
 		return new AsynchronousJiraRestClientExtended(URI.create(url), httpClient);
 	}
